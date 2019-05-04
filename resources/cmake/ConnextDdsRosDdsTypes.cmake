@@ -101,6 +101,7 @@ macro(connextdds_generate_ros_dds_types)
             IDL_FILE ${file}
             INCLUDE_DIRS ${_ROS_TYPES_INCLUDE_DIRS}
             ${unbounded}
+            NAMESPACE
             VAR generated_file
         )
 

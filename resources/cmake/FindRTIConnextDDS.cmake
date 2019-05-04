@@ -26,6 +26,53 @@
 # find_package invocation for this module to set variables for the different
 # libraries associated with them.
 #
+<<<<<<< Updated upstream
+=======
+# Also, the version consistency across all the requested components will be
+# checked. If the version between the components missmatch,
+# `RTIConnextDDS_FOUND` will be set to `FALSE`. This feature can be disabled
+# setting `CONNEXTDDS_DISABLE_VERSION_CHECK` to `TRUE`.
+#
+# Imported Targets
+# ^^^^^^^^^^^^^^^^
+#
+# This module defines the following `IMPORTED` targets:
+#
+# - ``RTIConnextDDS::c_api``
+#   The nddsc library if found (nddscore will be linked as part of this target).
+# - ``RTIConnextDDS::cpp_api``
+#   The nddscpp library if found (nddscore and nddsc will be linked as part of
+#   this target).
+# - ``RTIConnextDDS::cpp2_api``
+#   The nddscpp2 library if found (nddscore and nddsc will be linked as part of
+#   this target).
+# - ``RTIConnextDDS::distributed_logger_c``
+#   The C API library for Distributed Logger if found.
+# - ``RTIConnextDDS::distributed_logger_cpp``
+#   The CPP API library for Distributed Logger if found.
+# - ``RTIConnextDDS::routing_service_infrastructure``
+#   The infrastructure library for Routing Service if found.
+# - ``RTIConnextDDS::routing_service_c``
+#   The C API library for Routing Service if found (includes rtiroutingservice
+#   and rtirsinfrastructure).
+# - ``RTIConnextDDS::routing_service_cpp2``
+#   The CPP2 API library for Routing Service if found (includes
+#   rtiroutingservice and rtirsinfrastructure).
+# - ``RTIConnextDDS::routing_service``
+#   The same as RTIConnextDDS::routing_service_c. Maintained for backward
+#   compatibility.
+# - ``RTIConnextDDS::monitoring``
+#   The Monitoring library if found.
+# - ``RTIConnextDDS::security_plugins``
+#   The security plugins libraries if found (nddssecurity).
+# - ``RTIConnextDDS::messaging_c_api``
+#   The Request Reply C API library if found (rticonnextmsgc).
+# - ``RTIConnextDDS::messaging_cpp_api``
+#   The Request Reply CPP API library if found  (rticonnextmsgcpp).
+# - ``RTIConnextDDS::messaging_cpp2_api``
+#   The Request Reply C API library if found  (rticonnextmsgcpp2).
+#
+>>>>>>> Stashed changes
 # Result Variables
 # ^^^^^^^^^^^^^^^^
 # This module will set the following variables in your project:
@@ -38,6 +85,12 @@
 #   RTI Connext DDS include directories.
 # - ``CONNEXTDDS_DLL_EXPORT_MACRO``
 #   Macros to compile against RTI Connext DDS shared libraries on Windows.
+# - ``RTICODEGEN_DIR``
+#   Path to the directory where RTI Codegen is placed.
+# - ``RTICODEGEN``
+#   Path to the RTI Codegen executable.
+# - ``RTICODEGEN_VERSION``
+#   RTI Codegen version.
 #
 # This module will set the following variables for all the different libraries
 # that are part of the components selected at configuration time.
@@ -76,6 +129,8 @@
 # - ``routing_service``:
 #   - ``ROUTING_SERVICE_API``
 #     (e.g., ``ROUTING_SERVICE_API_LIBRARIES_RELEASE_STATIC``)
+#   - ``ROUTING_SERVICE_INFRASTRUCTURE``
+#     (e.g., ``ROUTING_SERVICE_INFRASTRUCTURE_LIBRARIES_RELEASE_STATIC``)
 #
 # - ``security_plugins``:
 #   - ``SECURITY_PLUGINS``
@@ -179,8 +234,25 @@
 #
 #   set(SOURCES_LIB src/FileAdapter.c src/LineConversion.c src/osapi.c)
 #
+<<<<<<< Updated upstream
 #   add_library(fileadapter SHARED ${SOURCES_LIB})
 #   TARGET_LINK_LIBRARIES(fileadapter ${LIBRARIES})
+=======
+#   add_library(shapestransf ${SOURCES_LIB})
+#   target_link_libraries(shapestransf
+#       PUBLIC
+#           RTIConnextDDS::routing_service)
+#
+# Supported platforms
+# ^^^^^^^^^^^^^^^^^^^
+# It is compatible with the following platforms listed in the
+# RTI Connext DDS Core Libraries Platform Notes:
+# - All the Linux i86 and x64 platforms
+# - Raspbian Wheezy 7.0 (3.x kernel) on ARMv6 (armv6vfphLinux3.xgcc4.7.2)
+# - Android 5.0 and 5.1 (armv7aAndroid5.0gcc4.9ndkr10e)
+# - All the Windows i86 and x64 platforms
+# - All the Darwin platforms (OS X 10.11-10.13)
+>>>>>>> Stashed changes
 #
 #####################################################################
 # Preconditions Check                                               #
@@ -203,14 +275,20 @@ if (NOT DEFINED CONNEXTDDS_DIR)
             "/Applications/rti_connext_dds-${RTIConnextDDS_FIND_VERSION}")
     endif()
 
-    set(connextdds_root_hints
-        "$ENV{NDDSHOME}"
-        "${connextdds_root_hints}")
 endif()
 
 # We require having an rti_versions file under the installation directory
 # as we will use it to verify that the version is appropriate.
+<<<<<<< Updated upstream
 find_path(CONNEXTDDS_DIR NAMES rti_versions.xml PATHS ${connextdds_root_hints})
+=======
+find_path(CONNEXTDDS_DIR
+    NAMES rti_versions.xml
+    HINTS
+        ENV NDDSHOME
+        ${connextdds_root_hints})
+
+>>>>>>> Stashed changes
 if(NOT CONNEXTDDS_DIR)
     string(CONCAT
         error
@@ -221,8 +299,91 @@ endif()
 
 message(STATUS "RTI Connext DDS installation directory... ${CONNEXTDDS_DIR}")
 
+set(codegen_name "rtiddsgen")
+if(WIN32)
+    set(codegen_name "${codegen_name}.bat")
+endif()
+
+find_path(RTICODEGEN_DIR
+    NAME "${codegen_name}"
+    HINTS
+        "${CONNEXTDDS_DIR}/bin")
+
+if(NOT RTICODEGEN_DIR)
+    set(warning
+        "Codegen was not found. Please, check if rtiddsgen is under your "
+        "NDDSHOME/bin directory or provide it to CMake using -DRTICODEGEN_DIR")
+        message(WARNING ${warning})
+else()
+    set(RTICODEGEN
+        "${RTICODEGEN_DIR}/${codegen_name}"
+        CACHE PATH
+        "Path to RTI Codegen")
+
+    # Execute RTI Code Generator to get the version
+    execute_process(COMMAND ${RTICODEGEN} -version
+        OUTPUT_VARIABLE codegen_version_string)
+
+    string(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+"
+        RTICODEGEN_VERSION "${codegen_version_string}")
+endif()
+
 # Find RTI Connext DDS architecture if CONNEXTDDS_ARCH is unset
 if(NOT DEFINED CONNEXTDDS_ARCH)
+<<<<<<< Updated upstream
+=======
+
+    # Guess the RTI Connext DDS architecture
+    if(CMAKE_HOST_SYSTEM_NAME MATCHES "Darwin")
+        string(REGEX REPLACE "^([0-9]+).*$" "\\1"
+            major_version
+            ${CMAKE_CXX_COMPILER_VERSION})
+        set(version_compiler "${major_version}.0")
+
+        string(REGEX REPLACE "^([0-9]+)\\.([0-9]+).*$" "\\1"
+            kernel_version "${CMAKE_SYSTEM_VERSION}")
+
+        set(guessed_architecture
+             "x64Darwin${kernel_version}${version_compiler}")
+
+    elseif(CMAKE_HOST_SYSTEM_NAME MATCHES "Windows")
+        if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "x86")
+            set(connextdds_host_arch "i86Win32")
+
+        elseif(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "AMD64")
+            set(connextdds_host_arch "x64Win64")
+
+        else()
+            message(FATAL_ERROR
+                "${CMAKE_HOST_SYSTEM} is not supported as host architecture")
+        endif()
+
+        string(REGEX MATCH "[0-9][0-9][0-9][0-9]"
+             vs_year
+             "${CMAKE_GENERATOR}")
+        set(guessed_architecture "${connextdds_host_arch}VS${vs_year}")
+    elseif(CMAKE_HOST_SYSTEM_NAME MATCHES "Linux")
+        if(CMAKE_COMPILER_VERSION VERSION_EQUAL "4.6.3")
+            set(kernel_version "3.x")
+        else()
+            string(REGEX REPLACE "^([0-9]+)\\.([0-9]+).*$" "\\1"
+                kernel_version
+                "${CMAKE_SYSTEM_VERSION}")
+        endif()
+
+        if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "x86_64")
+            set(connextdds_host_arch "x64Linux")
+
+        elseif(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "i686")
+            set(connextdds_host_arch "i86Linux")
+        endif()
+
+        set(guessed_architecture
+            "${connextdds_host_arch}${kernel_version}gcc${CMAKE_COMPILER_VERSION}")
+    endif()
+
+
+>>>>>>> Stashed changes
     if(DEFINED ENV{CONNEXTDDS_ARCH})
         set(CONNEXTDDS_ARCH $ENV{CONNEXTDDS_ARCH})
     else()
@@ -370,6 +531,7 @@ endfunction()
 # Platform-Specific Definitions
 if(CONNEXTDDS_ARCH MATCHES "Linux")
     # Linux Platforms
+<<<<<<< Updated upstream
     set(shared_library_suffix ".so")
     set(static_library_suffix ".a")
     set(library_prefix "lib")
@@ -385,6 +547,15 @@ if(CONNEXTDDS_ARCH MATCHES "Linux")
     else()
         message(FATAL_ERROR
             "${CONNEXTDDS_ARCH} architecture is unsupported by this module")
+=======
+    set(CONNEXTDDS_EXTERNAL_LIBS -ldl -lm -lpthread -lrt)
+    set(CONNEXTDDS_COMPILE_DEFINITIONS RTI_UNIX RTI_LINUX)
+
+    if(CONNEXTDDS_ARCH MATCHES "x64Linux")
+        set(CONNEXTDDS_COMPILE_DEFINITIONS
+            ${CONNEXTDDS_COMPILE_DEFINITIONS}
+            RTI_64BIT)
+>>>>>>> Stashed changes
     endif()
 elseif(CONNEXTDDS_ARCH MATCHES "Win")
     # Windows Platforms
@@ -644,6 +815,15 @@ if(routing_service IN_LIST RTIConnextDDS_FIND_COMPONENTS)
         "routing_service_sdk"
         "routing_service_sdk_jars")
 
+    # Find all flavors of librtirsinfrastructure
+    set(rtirsinfrastructure_libs
+        "rtirsinfrastructure"
+        "nddsc"
+        "nddscore")
+    get_all_library_variables(
+        "${rtirsinfrastructure_libs}"
+        "ROUTING_SERVICE_INFRASTRUCTURE")
+
     # Find all flavors of librtiroutingservice
     find_library(librtiroutingservice_release_static
         NAMES ${library_prefix}rtiroutingservicez${static_library_suffix}
@@ -875,5 +1055,252 @@ endif()
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(RTIConnextDDS
+<<<<<<< Updated upstream
     REQUIRED_VARS CONNEXTDDS_DIR RTICONNEXTDDS_VERSION RTICONNEXTDDS_VERSION_OK
     VERSION_VAR RTICONNEXTDDS_VERSION)
+=======
+    REQUIRED_VARS
+        CONNEXTDDS_DIR
+        RTICONNEXTDDS_VERSION
+        RTICONNEXTDDS_VERSION_OK
+    VERSION_VAR
+        RTICONNEXTDDS_VERSION
+    HANDLE_COMPONENTS)
+
+#####################################################################
+# Create imported targets                                           #
+#####################################################################
+set(location_property IMPORTED_LOCATION)
+if(RTIConnextDDS_FOUND AND RTIConnextDDS_core_FOUND)
+    if(${BUILD_SHARED_LIBS})
+        set(link_type SHARED)
+        set(target_definitions
+            ${CONNEXTDDS_COMPILE_DEFINITIONS}
+            ${CONNEXTDDS_DLL_EXPORT_MACRO})
+        if(WIN32)
+            set(location_property IMPORTED_IMPLIB)
+        endif()
+    else()
+        set(link_type STATIC)
+        set(target_definitions ${CONNEXTDDS_COMPILE_DEFINITIONS})
+    endif()
+
+    if(${CMAKE_BUILD_TYPE} MATCHES "Release")
+        set(build_type "RELEASE")
+    else()
+        set(build_type "DEBUG")
+    endif()
+
+    if(NOT TARGET RTIConnextDDS::c_api)
+        list(GET CONNEXTDDS_C_API_LIBRARIES_${build_type}_${link_type} 0
+            c_api_library)
+        list(GET CONNEXTDDS_C_API_LIBRARIES_${build_type}_${link_type} 1
+             core_library)
+
+        set(dependencies
+            ${core_library}
+            ${CONNEXTDDS_EXTERNAL_LIBS})
+
+        add_library(RTIConnextDDS::c_api ${link_type} IMPORTED)
+        set_target_properties(RTIConnextDDS::c_api
+            PROPERTIES
+                INTERFACE_INCLUDE_DIRECTORIES
+                    "${CONNEXTDDS_INCLUDE_DIRS}"
+                INTERFACE_COMPILE_DEFINITIONS
+                    "${target_definitions}"
+                INTERFACE_LINK_LIBRARIES
+                    "${dependencies}"
+                ${location_property}
+                    "${c_api_library}")
+
+    endif()
+
+    if(NOT TARGET RTIConnextDDS::cpp_api)
+        list(GET CONNEXTDDS_CPP_API_LIBRARIES_${build_type}_${link_type} 0
+            cpp_api_library)
+        list(GET CONNEXTDDS_CPP_API_LIBRARIES_${build_type}_${link_type} 1
+            c_api_library)
+        list(GET CONNEXTDDS_CPP_API_LIBRARIES_${build_type}_${link_type} 2
+            core_library)
+
+        add_library(RTIConnextDDS::cpp_api ${link_type} IMPORTED)
+        set_target_properties(RTIConnextDDS::cpp_api
+            PROPERTIES
+                INTERFACE_LINK_LIBRARIES
+                    RTIConnextDDS::c_api
+                ${location_property}
+                    "${cpp_api_library}")
+    endif()
+
+    if(NOT TARGET RTIConnextDDS::cpp2_api)
+        list(GET CONNEXTDDS_CPP2_API_LIBRARIES_${build_type}_${link_type} 0
+            cpp2_api_library)
+        list(GET CONNEXTDDS_CPP2_API_LIBRARIES_${build_type}_${link_type} 1
+            c_api_library)
+        list(GET CONNEXTDDS_CPP2_API_LIBRARIES_${build_type}_${link_type} 2
+            core_library)
+
+        add_library(RTIConnextDDS::cpp2_api ${link_type} IMPORTED)
+        set_target_properties(RTIConnextDDS::cpp2_api
+            PROPERTIES
+                INTERFACE_LINK_LIBRARIES
+                    RTIConnextDDS::c_api
+                ${location_property}
+                    "${cpp2_api_library}")
+    endif()
+
+    if(RTIConnextDDS_distributed_logger_FOUND)
+        if(NOT TARGET RTIConnextDDS::distributed_logger_c)
+            list(GET DISTRIBUTED_LOGGER_C_LIBRARIES_${build_type}_${link_type} 0
+                distributed_logger_c_lib)
+
+            add_library(RTIConnextDDS::distributed_logger_c
+                ${link_type}
+                IMPORTED)
+            set_target_properties(RTIConnextDDS::distributed_logger_c
+                PROPERTIES
+                    INTERFACE_LINK_LIBRARIES
+                        RTIConnextDDS::c_api
+                    ${location_property}
+                        "${distributed_logger_c_lib}")
+        endif()
+
+        if(NOT TARGET RTIConnextDDS::distributed_logger_cpp)
+            list(GET
+                DISTRIBUTED_LOGGER_CPP_LIBRARIES_${build_type}_${link_type} 0
+                distributed_logger_cpp_lib)
+
+            add_library(RTIConnextDDS::distributed_logger_cpp
+                ${link_type}
+                IMPORTED)
+            set_target_properties(RTIConnextDDS::distributed_logger_cpp
+                PROPERTIES
+                    INTERFACE_LINK_LIBRARIES
+                        RTIConnextDDS::cpp_api
+                    ${location_property}
+                        "${distributed_logger_cpp_lib}")
+        endif()
+    endif()
+
+    if(RTIConnextDDS_routing_service_FOUND AND
+        NOT TARGET RTIConnextDDS::routing_service_infrastructure)
+
+        list(GET
+            ROUTING_SERVICE_INFRASTRUCTURE_LIBRARIES_${build_type}_${link_type}
+            0
+            rtirsinfrastructure_library)
+
+        add_library(
+            RTIConnextDDS::routing_service_infrastructure
+            ${link_type} IMPORTED)
+        set_target_properties(RTIConnextDDS::routing_service_infrastructure
+            PROPERTIES
+                ${location_property}
+                    "${rtirsinfrastructure_library}"
+                INTERFACE_LINK_LIBRARIES
+                    RTIConnextDDS::c_api)
+    endif()
+
+
+    if(RTIConnextDDS_routing_service_FOUND AND
+        NOT TARGET RTIConnextDDS::routing_service_c)
+
+        list(GET ROUTING_SERVICE_API_LIBRARIES_${build_type}_${link_type} 0
+            rtirroutingservice_library)
+
+        add_library(RTIConnextDDS::routing_service_c ${link_type} IMPORTED)
+        set_target_properties(RTIConnextDDS::routing_service_c
+            PROPERTIES
+                ${location_property}
+                    "${rtirroutingservice_library}"
+                INTERFACE_LINK_LIBRARIES
+                    RTIConnextDDS::routing_service_infrastructure)
+
+        add_library(RTIConnextDDS::routing_service ${link_type} IMPORTED)
+        set_target_properties(RTIConnextDDS::routing_service
+            PROPERTIES
+                ${location_property}
+                    "${rtirroutingservice_library}"
+                INTERFACE_LINK_LIBRARIES
+                    RTIConnextDDS::routing_service_infrastructure)
+    endif()
+
+    if(RTIConnextDDS_routing_service_FOUND AND
+        NOT TARGET RTIConnextDDS::routing_service_cpp2 AND
+	RTICONNEXTDDS_VERSION VERSION_GREATER_EQUAL "6.0.0")
+
+        list(GET ROUTING_SERVICE_API_LIBRARIES_${build_type}_${link_type} 0
+            rtirroutingservice_library)
+
+        set(dependencies
+            RTIConnextDDS::routing_service_infrastructure
+            RTIConnextDDS::cpp2_api)
+
+        add_library(RTIConnextDDS::routing_service_cpp2 ${link_type} IMPORTED)
+        set_target_properties(RTIConnextDDS::routing_service_cpp2
+            PROPERTIES
+                ${location_property}
+                    "${rtirroutingservice_library}"
+                INTERFACE_LINK_LIBRARIES
+                    "${dependencies}")
+    endif()
+
+    if(RTIConnextDDS_security_plugins_FOUND AND
+        NOT TARGET RTIConnextDDS::security_plugins)
+        add_library(RTIConnextDDS::security_plugins ${link_type} IMPORTED)
+        set_target_properties(RTIConnextDDS::security_plugins
+            PROPERTIES
+                ${location_property}
+                    "${SECURITY_PLUGINS_LIBRARIES_${build_type}_${link_type}}")
+    endif()
+
+    if(RTIConnextDDS_monitoring_libraries_FOUND  AND
+        NOT TARGET RTIConnextDDS::monitoring)
+        add_library(RTIConnextDDS::monitoring ${link_type} IMPORTED)
+        set_target_properties(RTIConnextDDS::monitoring
+            PROPERTIES
+                ${location_property}
+                    "${MONITORING_LIBRARIES_${build_type}_${link_type}}")
+    endif()
+
+    if(RTIConnextDDS_messaging_api_FOUND)
+        if(NOT TARGET RTIConnextDDS::messaging_c_api)
+            list(GET MESSAGING_C_API_LIBRARIES_${build_type}_${link_type} 0
+                messaging_c_lib)
+            add_library(RTIConnextDDS::messaging_c_api ${link_type} IMPORTED)
+            set_target_properties(RTIConnextDDS::messaging_c_api
+                PROPERTIES
+                    INTERFACE_LINK_LIBRARIES
+                        RTIConnextDDS::c_api
+                    ${location_property}
+                        "${messaging_c_lib}")
+        endif()
+
+        if(NOT TARGET RTIConnextDDS::messaging_cpp_api)
+            list(GET MESSAGING_CPP_API_LIBRARIES_${build_type}_${link_type} 0
+                messaging_cpp_lib)
+            add_library(RTIConnextDDS::messaging_cpp_api ${link_type} IMPORTED)
+            set_target_properties(RTIConnextDDS::messaging_cpp_api
+                PROPERTIES
+                    INTERFACE_LINK_LIBRARIES
+                        RTIConnextDDS::cpp_api
+                    ${location_property}
+                        "${messaging_cpp_lib}")
+        endif()
+
+        if(NOT TARGET RTIConnextDDS::messaging_cpp2_api)
+            list(GET MESSAGING_CPP2_API_LIBRARIES_${build_type}_${link_type} 0
+                messaging_cpp2_lib)
+            add_library(RTIConnextDDS::messaging_cpp2_api
+                ${link_type}
+                IMPORTED)
+            set_target_properties(RTIConnextDDS::messaging_cpp2_api
+                PROPERTIES
+                    INTERFACE_LINK_LIBRARIES
+                        RTIConnextDDS::cpp2_api
+                    ${location_property}
+                        "${messaging_cpp2_lib}")
+        endif()
+    endif()
+endif()
+>>>>>>> Stashed changes
